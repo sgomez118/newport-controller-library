@@ -1,0 +1,30 @@
+{
+    "terminal.integrated.profiles.windows": {
+        "Developer PowerShell": {
+            "source": "PowerShell",
+            "icon": "terminal-powershell",
+            "args": [
+                "-WorkingDirectory",
+                "${workspaceFolder}",
+                "-NoExit",
+                "C:/Program Files/Microsoft Visual Studio/18/Community/Common7/Tools/Launch-VsDevShell.ps1",
+                "-Arch",
+                "amd64",
+                "-SkipAutomaticLocation"
+            ]
+        }
+    },
+    "terminal.integrated.defaultProfile.windows": "Developer PowerShell",
+    "editor.formatOnSave": true,
+    "C_Cpp.clang_format_style": "file",
+    "C_Cpp.default.cppStandard": "c++20",
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "cmake.configureOnOpen": true,
+    "cmake.preset": "x64-debug",
+    "cmake.debugConfig": {
+        "cwd": "${workspaceFolder}",
+        "environment": [],
+        "externalConsole": false
+    },
+    "cmake.buildDirectory": "${workspaceFolder}/build"
+}

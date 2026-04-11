@@ -1,0 +1,39 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug: zenith-finder",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${command:cmake.launchTargetPath}",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "PATH",
+          "value": "${env:PATH};${workspaceFolder}/build/vcpkg_installed/x64-windows/bin"
+        }
+      ],
+      "console": "integratedTerminal",
+      "preLaunchTask": "CMake: build"
+    },
+    {
+      "name": "Debug: unit_tests",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${command:cmake.launchTargetDirectory}/unit_tests.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "PATH",
+          "value": "${env:PATH};${workspaceFolder}/build/vcpkg_installed/x64-windows/bin"
+        }
+      ],
+      "console": "integratedTerminal",
+      "preLaunchTask": "CMake: build"
+    }
+  ]
+}

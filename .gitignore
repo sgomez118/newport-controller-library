@@ -1,0 +1,22 @@
+# Newport XPS programmer's manual — copyrighted, not for public distribution
+XPS-Unified-Programmer-s-Manual.pdf
+
+# Build output
+build/
+
+# vcpkg installed packages (reproducible via vcpkg.json)
+vcpkg_installed/
+
+# CMake user presets (machine-local: VCPKG_ROOT path, personal build settings)
+CMakeUserPresets.json
+
+# clangd cache
+.cache/
+
+# Windows build artifacts
+*.dll
+*.pdb
+*.lib
+*.exp
+*.obj
+*.exe
