@@ -10,6 +10,9 @@ vcpkg_installed/
 # CMake user presets (machine-local: VCPKG_ROOT path, personal build settings)
 CMakeUserPresets.json
 
+# Claude Code project data
+.claude/
+
 # clangd cache
 .cache/
 
