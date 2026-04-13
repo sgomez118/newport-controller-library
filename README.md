@@ -108,7 +108,7 @@ x.MoveRelative(1.5);
 | Phase | Scope | Status |
 |-------|-------|--------|
 | 0 — Skeleton | CMake shared library, vcpkg + GTest wired, all public headers with full signatures, stub `.cc` files compile clean | Done |
-| 1a — Transport | `TcpSocket`: connect, send, recv, timeout, drop detection | Planned |
+| 1a — Transport | `TcpSocket`: connect with timeout, send, `ReadUntil` sentinel, drop detection; `MockXpsServer` scripted TCP responder; 8 unit tests | Done |
 | 1b — Protocol | `XpsProtocol`: command formatting, `EndOfAPI` parser, error code table | Planned |
 | 1c — Connection | `XpsController::Connect` / `Disconnect`, reconnect loop, callbacks | Planned |
 | 1d — Motion | `Group` and `Positioner` motion and jog methods | Planned |
