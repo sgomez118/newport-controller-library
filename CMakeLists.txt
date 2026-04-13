@@ -11,6 +11,7 @@ add_library(newport_xps SHARED
     src/xps_controller.cc
     src/xps_group.cc
     src/xps_positioner.cc
+    src/internal/tcp_socket.cc
 )
 
 target_include_directories(newport_xps
@@ -22,6 +23,11 @@ target_include_directories(newport_xps
 )
 
 target_compile_definitions(newport_xps PRIVATE NEWPORT_XPS_BUILDING_DLL)
+
+# Winsock2 is required for TCP socket support on Windows.
+if(WIN32)
+    target_link_libraries(newport_xps PRIVATE Ws2_32)
+endif()
 
 target_compile_options(newport_xps PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/W4>
