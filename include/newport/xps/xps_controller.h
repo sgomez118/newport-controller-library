@@ -60,7 +60,7 @@ struct ConnectionConfig {
 //   XpsController controller(cfg);
 //   controller.SetOnReconnect([] { /* restart jog or motion if needed */ });
 //
-//   if (auto err = controller.Connect(); !err) {
+//   if (auto err = controller.OpenInstrument(); !err) {
 //     // err.error() has .code, .command, and .message
 //     return;
 //   }
@@ -83,11 +83,11 @@ class NEWPORT_XPS_API XpsController {
 
   // Establishes the TCP connection and logs in to the XPS controller.
   // Must be called before any other method.  Respects connect_timeout.
-  [[nodiscard]] std::expected<void, XpsError> Connect();
+  [[nodiscard]] std::expected<void, XpsError> OpenInstrument();
 
   // Closes the connection gracefully.  Safe to call when already disconnected.
   // Called automatically by the destructor.
-  void Disconnect();
+  void CloseInstrument();
 
   [[nodiscard]] bool IsConnected() const;
 

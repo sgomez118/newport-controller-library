@@ -18,14 +18,14 @@ XpsError NotImplemented(std::string_view command) {
 XpsController::XpsController(ConnectionConfig config)
     : config_(std::move(config)) {}
 
-XpsController::~XpsController() { Disconnect(); }
+XpsController::~XpsController() { CloseInstrument(); }
 
-std::expected<void, XpsError> XpsController::Connect() {
+std::expected<void, XpsError> XpsController::OpenInstrument() {
   // Phase 1c: open TCP socket, send Login command, start reconnect watchdog.
   return std::unexpected(NotImplemented("Login"));
 }
 
-void XpsController::Disconnect() {
+void XpsController::CloseInstrument() {
   // Phase 1c: close socket, cancel reconnect watchdog.
   connected_ = false;
 }

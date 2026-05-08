@@ -23,9 +23,9 @@ ConnectionConfig MakeTestConfig(uint16_t port = 9999) {
 
 }  // namespace
 
-// --- State before Connect() ---
+// --- State before OpenInstrument() ---
 
-TEST(XpsControllerTest, IsDisconnectedBeforeConnect) {
+TEST(XpsControllerTest, IsDisconnectedBeforeOpenInstrument) {
   XpsController controller(MakeTestConfig());
   EXPECT_FALSE(controller.IsConnected());
 }
@@ -44,11 +44,11 @@ TEST(XpsControllerTest, GetPositionerReturnsCorrectName) {
   EXPECT_EQ(pos.name(), "XYZR.X");
 }
 
-// --- Connect against a real server (Phase 1c: expand with MockXpsServer) ---
+// --- OpenInstrument against a real server (Phase 1c: expand with MockXpsServer) ---
 
-TEST(XpsControllerTest, ConnectFailsWhenNoServerListening) {
+TEST(XpsControllerTest, OpenInstrumentFailsWhenNoServerListening) {
   XpsController controller(MakeTestConfig(/*port=*/19999));
-  auto result = controller.Connect();
+  auto result = controller.OpenInstrument();
   EXPECT_FALSE(result.has_value());
   EXPECT_FALSE(controller.IsConnected());
 }
