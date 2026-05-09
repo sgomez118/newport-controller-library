@@ -8,7 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(GTest CONFIG REQUIRED)
 
 add_library(newport_xps SHARED
-    src/xps_controller.cc
+    src/controller.cc
     src/xps_group.cc
     src/internal/tcp_socket.cc
 )

@@ -1,5 +1,5 @@
-#ifndef NEWPORT_XPS_XPS_CONTROLLER_H_
-#define NEWPORT_XPS_XPS_CONTROLLER_H_
+#ifndef NEWPORT_XPS_CONTROLLER_H_
+#define NEWPORT_XPS_CONTROLLER_H_
 
 #include <chrono>
 #include <expected>
@@ -12,15 +12,15 @@
 
 namespace newport::xps {
 
-class NEWPORT_XPS_API XpsController {
+class NEWPORT_XPS_API Controller {
  public:
-  explicit XpsController();
-  ~XpsController();
+  explicit Controller();
+  ~Controller();
 
-  XpsController(const XpsController&) = delete;
-  XpsController& operator=(const XpsController&) = delete;
-  XpsController(XpsController&&) noexcept;
-  XpsController& operator=(XpsController&&) noexcept;
+  Controller(const Controller&) = delete;
+  Controller& operator=(const Controller&) = delete;
+  Controller(Controller&&) noexcept;
+  Controller& operator=(Controller&&) noexcept;
 
   /// @brief Create and open a socket.
   /// @details This function is used to create and open a socket. Send Timeout
@@ -52,4 +52,4 @@ class NEWPORT_XPS_API XpsController {
 
 }  // namespace newport::xps
 
-#endif  // NEWPORT_XPS_XPS_CONTROLLER_H_
+#endif  // NEWPORT_XPS_CONTROLLER_H_
