@@ -9,9 +9,9 @@
 
 namespace newport::xps {
 
-class NEWPORT_XPS_API XpsGroup {
+class NEWPORT_XPS_API Group {
  public:
-  virtual ~XpsGroup() = default;
+  virtual ~Group() = default;
 
   const std::string& Name() const;
   const std::vector<XpsPositioner>& Positioners() const;
@@ -21,8 +21,8 @@ class NEWPORT_XPS_API XpsGroup {
   virtual int GroupHomeSearch() = 0;
 
  protected:
-  XpsGroup(std::string name, std::vector<XpsPositioner> positioners,
-           int max_positioners = 16);
+  Group(std::string name, std::vector<XpsPositioner> positioners,
+        int max_positioners = 16);
 
  private:
   std::string name_;
