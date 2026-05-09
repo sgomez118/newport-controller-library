@@ -4,6 +4,7 @@
 #include <chrono>
 #include <expected>
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -18,8 +19,8 @@ class NEWPORT_XPS_API XpsController {
 
   XpsController(const XpsController&) = delete;
   XpsController& operator=(const XpsController&) = delete;
-  XpsController(XpsController&&) = default;
-  XpsController& operator=(XpsController&&) = default;
+  XpsController(XpsController&&) noexcept;
+  XpsController& operator=(XpsController&&) noexcept;
 
   /// @brief Create and open a socket.
   /// @details This function is used to create and open a socket. Send Timeout
@@ -43,6 +44,10 @@ class NEWPORT_XPS_API XpsController {
   /// @param readingTimeout Reading timeout in milliseconds
   /// @return Error code 0: No error. -1: Error of set timeout.
   [[nodiscard]] int SetTimeout(int sendingTimeout, int readingTimeout);
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace newport::xps
