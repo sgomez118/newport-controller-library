@@ -8,7 +8,7 @@
 #include <string>
 #include <string_view>
 
-#include "newport/xps/xps_export.h"
+#include "xps_export.h"
 
 namespace newport::xps {
 
