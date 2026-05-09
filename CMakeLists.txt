@@ -9,7 +9,7 @@ find_package(GTest CONFIG REQUIRED)
 
 add_library(newport_xps SHARED
     src/controller.cc
-    src/xps_group.cc
+    src/group.cc
     src/internal/tcp_socket.cc
 )
 

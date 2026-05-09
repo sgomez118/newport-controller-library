@@ -1,10 +1,12 @@
+#include "newport/xps/group.h"
+
 #include <cassert>
 
-#include "newport/xps/group.h"
+#include "newport/xps/positioner.h"
 
 namespace newport::xps {
 
-Group::Group(std::string name, std::vector<XpsPositioner> positioners,
+Group::Group(std::string name, std::vector<Positioner> positioners,
              int max_positioners)
     : name_(std::move(name)), positioners_(std::move(positioners)) {
   assert(static_cast<int>(positioners_.size()) <= max_positioners);
@@ -15,7 +17,7 @@ Group::Group(std::string name, std::vector<XpsPositioner> positioners,
 
 const std::string& Group::Name() const { return name_; }
 
-const std::vector<XpsPositioner>& Group::Positioners() const {
+const std::vector<Positioner>& Group::Positioners() const {
   return positioners_;
 }
 

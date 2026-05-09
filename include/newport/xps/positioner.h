@@ -5,11 +5,12 @@
 #include <functional>
 #include <string>
 
+#include "group.h"
 #include "xps_export.h"
 
 namespace newport::xps {
 
-class XpsController;  // forward declaration
+class Group;  // forward declaration
 
 struct SGammaProfile {
   double velocity;
@@ -26,9 +27,9 @@ struct PositionState {
   double following_error() const { return setpoint - current; }
 };
 
-class NEWPORT_XPS_API XpsPositioner {
+class NEWPORT_XPS_API Positioner {
  public:
-  static std::expected<XpsPositioner, std::string> Create(
+  static std::expected<Positioner, std::string> Create(
       std::string full_name, SGammaProfile sgamma,
       std::function<double(double)> mapping = nullptr);
   const std::string& FullName() const { return full_name_; }
@@ -37,9 +38,9 @@ class NEWPORT_XPS_API XpsPositioner {
   const PositionState& GetPositionState() const { return position_state_; }
 
  private:
-  XpsPositioner(std::string full_name, std::string group_name,
-                SGammaProfile sgamma, std::function<double(double)> mapping);
-  friend class XpsController;
+  Positioner(std::string full_name, std::string group_name,
+             SGammaProfile sgamma, std::function<double(double)> mapping);
+  friend class Group;
   void SetPositionState(PositionState state) { position_state_ = state; }
   PositionState position_state_;
   std::string full_name_;   // "Group.Pos1"
