@@ -1,10 +1,7 @@
 add_executable(xps_tests
     mock_xps_server.cc
-    test_controller.cc
-    test_group_motion.cc
-    test_tcp_socket.cc
-    # TcpSocket is an internal class — compile it directly into the test
-    # executable so tests can reach it without exporting from the DLL.
+    # Internal classes are compiled directly into the test executable so tests
+    # can reach them without exporting symbols from the DLL.
     ${CMAKE_SOURCE_DIR}/src/internal/tcp_socket.cc
 )
 
