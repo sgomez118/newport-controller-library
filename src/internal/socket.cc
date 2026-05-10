@@ -1,7 +1,17 @@
 #include "socket.h"
 
+#include <algorithm>
+#include <cerrno>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <mutex>
+#include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -13,11 +23,8 @@
 #include <WS2tcpip.h>
 #include <WinSock2.h>
 #pragma comment(lib, "Ws2_32.lib")
-using socket_handle_t = SOCKET;
-using socklen_t_compat = int;
-static constexpr socket_handle_t kInvalidSocket = INVALID_SOCKET;
-static constexpr int kSocketError = SOCKET_ERROR;
 #endif
+
 namespace newport::xps::internal {
 
 namespace {
