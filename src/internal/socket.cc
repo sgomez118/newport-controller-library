@@ -1,6 +1,7 @@
 #include "socket.h"
 
 #include <string>
+#include <string_view>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -82,6 +83,21 @@ void CloseHandle(NativeHandle s) noexcept {
   }
 }
 #endif
+
+[[nodiscard]] Error MakeError(int code, std::string_view what, int sys_err) {
+  std::string msg{what};
+  msg += ": ";
+  msg += FormatErrno(sys_err);
+  msg += " (errno=)";
+  msg += std::to_string(sys_err);
+  msg += ')';
+  return Error{code, std::move(msg)};
+}
+
+[[nodiscard]] Error MakeError(int code, std::string what) {
+  return Error{code, std::move(what)};
+}
+
 }  // namespace
 
 }  // namespace newport::xps::internal
