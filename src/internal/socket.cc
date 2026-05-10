@@ -159,4 +159,142 @@ void CloseHandle(NativeHandle s) noexcept {
 
 }  // namespace
 
+// ---------------------------------------------------------------------------
+// Socket
+// ---------------------------------------------------------------------------
+
+Socket::Socket(Socket&& other) noexcept : handle_(other.handle_) {
+  other.handle_ = kInvalidHandle;
+}
+
+Socket& Socket::operator=(Socket&& other) noexcept {
+  if (this != &other) {
+    Close();
+    handle_ = other.handle_;
+    other.handle_ = kInvalidHandle;
+  }
+  return *this;
+}
+
+Socket::~Socket() { Close(); }
+
+void Socket::Close() noexcept {
+  if (handle_ != kInvalidHandle) {
+    CloseHandle(ToNative(handle_));
+    handle_ = kInvalidHandle;
+  }
+}
+
+Result<Socket> Socket::Connect(std::string_view host, int port,
+                               std::chrono::milliseconds connect_timeout) {
+  EnsureWinsockStarted();
+
+  if (host.empty()) {
+    return std::unexpected(
+        MakeError(transport_error::kSocketResolveFailed, "host is empty"));
+  }
+
+  if (port <= 0 || port > 65535) {
+    return std::unexpected(
+        MakeError(transport_error::kSocketConnectFailed, "port out of range"));
+  }
+
+  // getaddrinfo wants a NUL-terminated host string.
+  std::string host_z{host};
+  std::string port_z = std::to_string(port);
+
+  addrinfo hints{};
+  hints.ai_family = AF_UNSPEC;  // IPv4 or IPv6
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
+
+  addrinfo* res = nullptr;
+  int gai = ::getaddrinfo(host_z.c_str(), port_z.c_str(), &hints, &res);
+  if (gai != 0 || res == nullptr) {
+#ifdef _WIN32
+    return std::unexpected(MakeError(transport_error::kSocketResolveFailed,
+                                     "getaddrinfo", WSAGetLastError()));
+#endif
+  }
+
+  // Try each resolved address in order; keep the last error to report.
+  Error last_err{transport_error::kSocketConnectFailed, "no addresses tried"};
+  for (addrinfo* p = res; p != nullptr; p = p->ai_next) {
+    NativeHandle s = ::socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+
+    if (s == kPlatformInvalidSocket) {
+      last_err = MakeError(transport_error::kSocketCreateFailed, "socket()",
+                           LastSocketError());
+      continue;
+    }
+
+    if (!SetNonBlocking(s, true)) {
+      last_err = MakeError(transport_error::kSocketSetoptFailed,
+                           "set non-blocking", LastSocketError());
+      CloseHandle(s);
+      continue;
+    }
+
+    int cr =
+        ::connect(s, p->ai_addr, static_cast<SocklenCompat>(p->ai_addrlen));
+    bool in_progress = false;
+    if (cr == kPlatformSocketError) {
+      int err = LastSocketError();
+#ifdef _WIN32
+      in_progress = (err == WSAEWOULDBLOCK || err == WSAEINPROGRESS);
+#endif
+      if (!in_progress) {
+        last_err =
+            MakeError(transport_error::kSocketConnectFailed, "connect()", err);
+        CloseHandle(s);
+        continue;
+      }
+    }
+
+    if (in_progress) {
+      int wr = WaitForConnect(s, connect_timeout);
+      if (wr > 0) {
+        last_err = Error{transport_error::kSocketTimeout, "connect timed out"};
+        CloseHandle(s);
+        continue;
+      }
+      if (wr < 0) {
+        last_err = MakeError(transport_error::kSocketConnectFailed,
+                             "connect (async)", LastSocketError());
+        CloseHandle(s);
+        continue;
+      }
+    }
+
+    // Back to blocking mode for norma send/recv
+    if (!SetNonBlocking(s, false)) {
+      last_err = MakeError(transport_error::kSocketSetoptFailed, "set blocking",
+                           LastSocketError());
+      CloseHandle(s);
+      continue;
+    }
+
+    int one = 1;
+    (void)::setsockopt(s, IPPROTO_TCP, TCP_NODELAY,
+                       reinterpret_cast<const char*>(&one), sizeof(one));
+
+    ::freeaddrinfo(res);
+
+    Socket sock(FromNative(s));
+
+    // Default timeouts to 1s, matching Newport's OpenInstrument helper
+    if (auto r = sock.SetSendTimeout(std::chrono::seconds{1}); !r) {
+      return std::unexpected(std::move(r.error()));
+    }
+    if (auto r = sock.SetRecvTimeout(std::chrono::seconds{1}); !r) {
+      return std::unexpected(std::move(r.error()));
+    }
+
+    return sock;
+  }
+
+  ::freeaddrinfo(res);
+  return std::unexpected(std::move(last_err));
+}
+
 }  // namespace newport::xps::internal
