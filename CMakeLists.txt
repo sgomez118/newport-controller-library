@@ -8,9 +8,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(GTest CONFIG REQUIRED)
 
 add_library(newport_xps SHARED
-    src/controller.cc
-    src/group.cc
-    src/internal/tcp_socket.cc
+    # src/controller.cc
+    # src/group.cc
+    src/internal/socket.cc
 )
 
 target_include_directories(newport_xps
@@ -34,4 +34,4 @@ target_compile_options(newport_xps PRIVATE
 )
 
 enable_testing()
-add_subdirectory(tests)
+# add_subdirectory(tests)

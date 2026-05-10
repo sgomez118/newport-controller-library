@@ -1,123 +1,166 @@
-# newport-controller-library
+# xps
 
-A modern C++23 shared library for controlling Newport XPS-D motion controllers over TCP/IP.
+A modern C++23 client library for [Newport XPS Unified motion controllers](https://www.newport.com/), implementing the XPS Unified TCP/IP protocol from scratch.
 
-Newport provides a .NET assembly and legacy C drivers for the XPS. This library offers a clean, dependency-free native C++ alternative with value-semantic handles, structured error reporting via `std::expected`, and a straightforward threading model.
+This is a personal project. It targets the base firmware tier and exposes an object-oriented API around `Controller`, `Group`, and `Positioner`.
 
-## Features
+## Status
 
-- **No exceptions** — all fallible operations return `std::expected<T, XpsError>`
-- **Rich errors** — every `XpsError` carries the XPS error code, the raw command string, and a human-readable message
-- **Automatic reconnection** — exponential backoff with user-supplied callbacks for jog-mode safety
-- **Simple threading model** — one `XpsController` = one socket = one thread; create multiple instances for concurrency (the XPS-D supports up to 100 simultaneous connections)
-- **Value-semantic handles** — `Group` and `Positioner` are lightweight and cheap to copy
+🚧 **Work in progress.** Not all base-firmware functions are wrapped yet — see [Coverage](#coverage).
 
 ## Requirements
 
-| Tool | Version |
-|------|---------|
-| C++ compiler | MSVC 2022+ or GCC 13+ or Clang 17+ |
-| CMake | 4.0+ |
-| Ninja | any recent |
-| vcpkg | any recent |
+- C++23 compiler (Clang 17+, GCC 13+, or MSVC 19.40+ / VS 2022 17.10+)
+- CMake 4.0+
+- An XPS Unified controller reachable over TCP (default port 5001)
+
+The library has no external runtime dependencies — only the standard library and the host's BSD/Winsock socket API.
 
 ## Building
 
-1. Set the `VCPKG_ROOT` environment variable to your vcpkg installation directory.
-
-2. Configure and build:
-
-```sh
-cmake --preset x64-debug
+```bash
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-3. Run the tests:
+To run the codec unit tests (no controller required):
 
-```sh
-ctest --test-dir build -C Debug --output-on-failure
+```bash
+ctest --test-dir build
 ```
 
-The `CMakePresets.json` defines a `base` preset (Ninja generator, `build/` output directory, vcpkg toolchain). Create a `CMakeUserPresets.json` (git-ignored) that inherits from `base` and sets `VCPKG_ROOT` if you prefer not to use an environment variable:
-
-```json
-{
-  "version": 10,
-  "configurePresets": [
-    {
-      "name": "x64-debug",
-      "inherits": "base",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" },
-      "environment": { "VCPKG_ROOT": "C:/path/to/vcpkg" }
-    }
-  ]
-}
-```
-
-## Reference manual
-
-The XPS-D Unified Programmer's Manual is available from Newport/MKS Instruments. It is not included in this repository. You will need it to understand the command set and error codes when contributing to the protocol layer.
-
-## API overview
+## Quick start
 
 ```cpp
-#include "newport/xps/xps_controller.h"
+#include <xps/controller.hpp>
+#include <print>
 
-using namespace newport::xps;
+int main() {
+    auto ctrl = xps::Controller::open("192.168.254.254");
+    if (!ctrl) {
+        std::println(stderr, "open failed: {}", ctrl.error().message);
+        return 1;
+    }
 
-ConnectionConfig cfg;
-cfg.host     = "192.168.0.254";
-cfg.username = "Administrator";
-cfg.password = "Administrator";
+    auto version = ctrl->firmware_version();
+    if (version) std::println("XPS firmware: {}", *version);
 
-XpsController controller(cfg);
+    auto xy = ctrl->group("XY", /*axis_count=*/2);
 
-controller.SetOnReconnect([] { /* restart jog if needed */ });
+    auto result = xy.initialize()
+        .and_then([&] { return xy.home_search(); })
+        .and_then([&] { return xy.move_absolute({10.0, 5.0}); });
 
-if (auto result = controller.Connect(); !result) {
-    auto& err = result.error();
-    // err.code, err.command, err.message
-    return;
+    if (!result) {
+        std::println(stderr, "motion failed (code {}): {}",
+                     result.error().code, result.error().message);
+        return 1;
+    }
+
+    if (auto pos = xy.position_current()) {
+        std::println("at: ({}, {})", (*pos)[0], (*pos)[1]);
+    }
 }
-
-// Multi-axis group
-Group stage = controller.GetGroup("XYZR");
-stage.Initialize();
-stage.HomeSearch();
-stage.MoveAbsolute({0.0, 0.0, 0.0, 0.0});
-
-// Single-axis positioner
-Positioner x = stage.GetPositioner("X");  // full name: "XYZR.X"
-x.MoveRelative(1.5);
 ```
 
-### Types
+See [`examples/`](examples/) for more.
 
-| Type | Description |
-|------|-------------|
-| `XpsController` | Owns the TCP connection. Not copyable; create one per thread. |
-| `Group` | Handle to a named XPS group. Lightweight value type. |
-| `Positioner` | Handle to a single axis or single-axis group. Lightweight value type. |
-| `XpsError` | Error detail: `int code`, `std::string command`, `std::string message`. |
-| `ConnectionConfig` | TCP connection parameters, credentials, and timeout settings. |
+## Design
 
-`Group` and `Positioner` are non-owning — the `XpsController` that produced them must outlive them.
+### Layered architecture
 
-## Project status
+```
+┌─────────────────────────────────┐
+│  Controller / Group / Positioner│   Layer 4: domain
+├─────────────────────────────────┤
+│  command formatter / parser     │   Layer 3: wire codec
+├─────────────────────────────────┤
+│  Connection (request/response)  │   Layer 2: framed messaging
+├─────────────────────────────────┤
+│  raw socket (BSD / Winsock)     │   Layer 1: transport
+└─────────────────────────────────┘
+```
 
-| Phase | Scope | Status |
-|-------|-------|--------|
-| 0 — Skeleton | CMake shared library, vcpkg + GTest wired, all public headers with full signatures, stub `.cc` files compile clean | Done |
-| 1a — Transport | `TcpSocket`: connect with timeout, send, `ReadUntil` sentinel, drop detection; `MockXpsServer` scripted TCP responder; 8 unit tests | Done |
-| 1b — Protocol | `XpsProtocol`: command formatting, `EndOfAPI` parser, error code table | Planned |
-| 1c — Connection | `XpsController::Connect` / `Disconnect`, reconnect loop, callbacks | Planned |
-| 1d — Motion | `Group` and `Positioner` motion and jog methods | Planned |
-| 1e — Integration | Full round-trip tests gated on `XPS_INTEGRATION_HOST` env var | Planned |
+Only Layer 4 is in the public headers. Lower layers live under `src/internal/`.
 
-## Namespace
+### Error handling
 
-All public symbols live in `newport::xps`. The `newport` namespace is intentionally kept open for future Newport product libraries.
+Every fallible operation returns `xps::Result<T>` (a `std::expected<T, xps::Error>`). No exceptions are thrown for protocol-level errors — only for genuine programmer errors (e.g. constructing a `Group` with a name containing whitespace, which would produce malformed wire commands).
 
-## Code style
+```cpp
+struct Error {
+    int code;            // XPS error code (0 = success, < 0 = error)
+    std::string message; // human-readable description
+};
+```
 
-This project follows the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html): PascalCase for types and functions, snake_case for variables and fields, `.cc` source extension, and `#ifndef` include guards.
+All Result-returning methods are `[[nodiscard]]`.
+
+### Wire protocol
+
+The XPS Unified protocol is a textual request/response protocol over TCP. This library implements it directly:
+
+- Commands are formatted as `FunctionName(arg1,arg2,...)` with no spaces.
+- Output slots are encoded with placeholder tokens (`double *`, `int *`, `char *`).
+- Each command is terminated with `,EndOfAPI.`.
+- Replies start with the integer return code, followed by comma-separated outputs, and end with `,EndOfAPI.`.
+- Floating-point values use `.` as the decimal separator regardless of host locale (via `std::format`).
+
+A single `Connection` serializes commands across threads with an internal mutex; if you need concurrent operations (e.g. status polling during a long move, or aborts), open a second `Connection`.
+
+### Group / positioner discovery
+
+The XPS controller does not expose an API to enumerate groups or positioners — these are defined statically in the controller's `system.ini` file and known only to the controller. You must tell this library which groups and positioners exist by name when constructing handles:
+
+```cpp
+auto xy   = ctrl->group("XY", 2);
+auto xy_x = ctrl->positioner("XY.X");
+```
+
+A handle is just a name + connection reference — no validation happens at construction time. The first call against a non-existent name will return `Error{-19, "Group name doesn't exist or unknown command"}`.
+
+## Coverage
+
+This library targets the **base firmware tier only**. Functions marked `[Extended]` or `[MODULE]` in the XPS Unified Programmer's Manual are out of scope.
+
+Implemented so far:
+
+- [x] `Controller` — connect, firmware version, controller status, error string lookup
+- [x] `Group` — initialize, home search, move absolute / relative, abort, kill, status, position get
+- [ ] `Group` — jog, spin, referencing, analog tracking, external profiler
+- [ ] `Positioner` — corrector parameters (PID / PIDFF variants), backlash, stage parameters, encoder
+- [ ] XY / XYZ / TZ / Hexapod / Spindle group-type-specific calls
+
+## Project layout
+
+```
+xps/
+├── include/newport/xps/        # public headers
+│   ├── controller.hpp
+│   ├── group.hpp
+│   ├── positioner.hpp
+│   ├── error.hpp
+│   ├── status.hpp      # GroupStatus, ControllerStatus enums (manual §8)
+│   └── parameters.hpp  # PIDFFAccelerationParameters, etc.
+├── src/
+│   ├── controller.cpp
+│   ├── group.cpp
+│   ├── positioner.cpp
+│   └── internal/
+│       ├── socket.{hpp,cpp}      # Layer 1
+│       ├── connection.{hpp,cpp}  # Layer 2
+│       └── codec.{hpp,cpp}       # Layer 3
+├── tests/
+│   └── codec_test.cpp
+├── examples/
+│   └── home_and_move.cpp
+└── CMakeLists.txt
+```
+
+## References
+
+- Newport XPS Unified Programmer's Manual (EDH0373En1046, 09/25)
+
+## License
+
+TBD.

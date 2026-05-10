@@ -17,8 +17,8 @@ class NEWPORT_XPS_API Group {
   const std::vector<Positioner>& Positioners() const;
 
   // List of Group functions
-  virtual int GroupInitialize() = 0;
-  virtual int GroupHomeSearch() = 0;
+  virtual int Initialize() = 0;
+  virtual int HomeSearch() = 0;
 
  protected:
   Group(std::string name, std::vector<Positioner> positioners,

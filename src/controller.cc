@@ -5,7 +5,7 @@
 namespace newport::xps {
 
 struct Controller::Impl {
-  internal::TcpSocket socket;
+  internal::Socket socket;
   std::chrono::milliseconds send_timeout{1000};
   std::chrono::milliseconds receive_timeout{1000};
 };
