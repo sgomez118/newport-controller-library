@@ -376,4 +376,20 @@ Result<std::size_t> Socket::RecvSome(std::span<std::byte> out) {
   return static_cast<std::size_t>(n);
 }
 
+Result<void> Socket::SetSendTimeout(std::chrono::milliseconds timeout) {
+  if (!IsOpen()) {
+    return std::unexpected(
+        MakeError(transport_error::kSocketSetoptFailed, "socket not open"));
+  }
+  return SetTimeoutImpl(ToNative(handle_), SO_SNDTIMEO, timeout, "SO_SNDTIMEO");
+}
+
+Result<void> Socket::SetRecvTimeout(std::chrono::milliseconds timeout) {
+  if (!IsOpen()) {
+    return std::unexpected(
+        MakeError(transport_error::kSocketSetoptFailed, "socket not open"));
+  }
+  return SetTimeoutImpl(ToNative(handle_), SO_RCVTIMEO, timeout, "SO_RCVTIMEO");
+}
+
 }  // namespace newport::xps::internal
