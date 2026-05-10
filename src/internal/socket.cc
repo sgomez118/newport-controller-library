@@ -339,4 +339,41 @@ Result<void> Socket::SendAll(std::span<const std::byte> data) {
   return {};
 }
 
+Result<std::size_t> Socket::RecvSome(std::span<std::byte> out) {
+  if (!IsOpen()) {
+    return std::unexpected(
+        MakeError(transport_error::kSocketRecvFailed, "socket not open"));
+  }
+  if (out.empty()) {
+    return std::size_t{0};
+  }
+
+  NativeHandle s = ToNative(handle_);
+  std::size_t cap = std::min<std::size_t>(out.size(), 1u << 20);
+
+#ifdef _WIN32
+  int n =
+      ::recv(s, reinterpret_cast<char*>(out.data()), static_cast<int>(cap), 0);
+#endif
+
+  if (n == kPlatformSocketError) {
+    int err = LastSocketError();
+#ifdef _WIN32
+    if (err == WSAETIMEDOUT) {
+      return std::unexpected(
+          Error{transport_error::kSocketTimeout, "recv timed out"});
+    }
+#endif
+    return std::unexpected(
+        MakeError(transport_error::kSocketRecvFailed, "recv()", err));
+  }
+
+  if (n == 0) {
+    return std::unexpected(
+        Error{transport_error::kSocketClosedByPeer, "peer closed connection"});
+  }
+
+  return static_cast<std::size_t>(n);
+}
+
 }  // namespace newport::xps::internal
