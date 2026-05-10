@@ -98,6 +98,65 @@ void CloseHandle(NativeHandle s) noexcept {
   return Error{code, std::move(what)};
 }
 
+// ---------------------------------------------------------------------------
+// Non-blocking connect with timeout
+// ---------------------------------------------------------------------------
+
+[[nodiscard]] bool SetNonBlocking(NativeHandle s, bool nb) noexcept {
+#ifdef _WIN32
+  u_long mode = nb ? 1u : 0u;
+  return ::ioctlsocket(s, FIONBIO, &mode) == 0;
+#endif
+}
+
+[[nodiscard]] int WaitForConnect(NativeHandle s,
+                                 std::chrono::milliseconds timeout) noexcept {
+#ifdef _WIN32
+  fd_set wset, eset;
+  FD_ZERO(&wset);
+  FD_ZERO(&eset);
+  FD_SET(s, &wset);
+  FD_SET(s, &eset);
+  timeval tv{};
+  tv.tv_sec = static_cast<long>(timeout.count() / 1000);
+  tv.tv_usec = static_cast<long>((timeout.count() % 1000) * 1000);
+  int n = ::select(0, nullptr, &wset, &eset, &tv);
+  if (n == 0) return 1;  // timeout
+  if (n == kPlatformSocketError) return -1;
+  if (FD_ISSET(s, &eset)) return -1;
+  // Check SO_ERROR -- connect can complete with an asynchronous failure.
+  int so_err = 0;
+  SocklenCompat len = sizeof(so_err);
+  if (::getsockopt(s, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&so_err),
+                   &len) != 0 ||
+      so_err != 0) {
+    WSASetLastError(so_err);
+    return -1;
+  }
+  return 0;
+#endif
+}
+
+[[nodiscard]] Result<void> SetTimeoutImpl(NativeHandle s, int optname,
+                                          std::chrono::milliseconds timeout,
+                                          const char* what) {
+  if (timeout < std::chrono::milliseconds{1}) {
+    timeout = std::chrono::milliseconds{1};
+  }
+
+#ifdef _WIN32
+  DWORD ms = static_cast<DWORD>(timeout.count());
+  int rc = ::setsockopt(s, SOL_SOCKET, optname,
+                        reinterpret_cast<const char*>(&ms), sizeof(ms));
+#endif
+
+  if (rc == kPlatformSocketError) {
+    return std::unexpected(MakeError(transport_error::kSocketSetoptFailed, what,
+                                     LastSocketError()));
+  }
+  return {};
+}
+
 }  // namespace
 
 }  // namespace newport::xps::internal
