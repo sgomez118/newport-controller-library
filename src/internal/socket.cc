@@ -297,4 +297,46 @@ Result<Socket> Socket::Connect(std::string_view host, int port,
   return std::unexpected(std::move(last_err));
 }
 
+Result<void> Socket::SendAll(std::span<const std::byte> data) {
+  if (!IsOpen()) {
+    return std::unexpected(
+        MakeError(transport_error::kSocketSendFailed, "socket not open"));
+  }
+
+  const std::byte* p = data.data();
+  std::size_t remaining = data.size();
+  NativeHandle s = ToNative(handle_);
+
+  while (remaining > 0) {
+    std::size_t chunk = std::min<std::size_t>(remaining, 1u << 20);
+
+#ifdef _WIN32
+    int n =
+        ::send(s, reinterpret_cast<const char*>(p), static_cast<int>(chunk), 0);
+#endif
+
+    if (n == kPlatformSocketError) {
+      int err = LastSocketError();
+#ifdef _WIN32
+      if (err == WSAETIMEDOUT) {
+        return std::unexpected(
+            Error{transport_error::kSocketTimeout, "send timed out"});
+      }
+#endif
+      return std::unexpected(
+          MakeError(transport_error::kSocketSendFailed, "send()", err));
+    }
+
+    if (n == 0) {
+      return std::unexpected(Error{transport_error::kSocketClosedByPeer,
+                                   "peer closed connection during send"});
+    }
+
+    p += static_cast<std::size_t>(n);
+    remaining -= static_cast<std::size_t>(n);
+  }
+
+  return {};
+}
+
 }  // namespace newport::xps::internal
